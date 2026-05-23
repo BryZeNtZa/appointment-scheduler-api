@@ -1,0 +1,173 @@
+###############################################################################
+# Appointment Booking System - API smoke tests
+#
+# Works with the IntelliJ HTTP Client (built in) and the VS Code "REST Client"
+# extension. Start the app first: `docker compose up --build` (API on :8089).
+# Run the requests top to bottom - users must exist before booking, and the
+# booking request stores its generated refRDV for the requests that follow.
+###############################################################################
+
+@host = http://localhost:8089
+@api = {{host}}/api
+
+# dateRDV rules: on the hour, between 08:00 and 15:00, and at least two days in
+# the future. Update if this date is no longer at least two days ahead.
+@dateRDV = 2026-06-01T09:00:00
+
+### List the 5 seeded departments
+GET {{api}}/departments
+Accept: application/json
+
+### Create a manager
+POST {{api}}/users
+Content-Type: application/json
+
+{
+  "ref": "MGR-1",
+  "email": "manager@afb.test",
+  "telephone": "0600000001",
+  "nom": "Doe",
+  "prenom": "John",
+  "role": "MANAGER"
+}
+
+### Create a client
+POST {{api}}/users
+Content-Type: application/json
+
+{
+  "ref": "CLI-1",
+  "email": "client1@afb.test",
+  "telephone": "0600000002",
+  "nom": "Roe",
+  "prenom": "Jane",
+  "role": "CLIENT"
+}
+
+### Create a second client (for a two-person appointment)
+POST {{api}}/users
+Content-Type: application/json
+
+{
+  "ref": "CLI-2",
+  "email": "client2@afb.test",
+  "telephone": "0600000003",
+  "nom": "Sky",
+  "prenom": "Sam",
+  "role": "CLIENT"
+}
+
+### Get a user by reference
+GET {{api}}/users/MGR-1
+Accept: application/json
+
+### List users filtered by role
+GET {{api}}/users?role=MANAGER
+Accept: application/json
+
+### Book an appointment (two participants) - stores refRDV for later requests
+POST {{api}}/appointments
+Content-Type: application/json
+
+{
+  "refClient": "CLI-1",
+  "secondClientRef": "CLI-2",
+  "refService": "HR",
+  "refResponsable": "MGR-1",
+  "dateRDV": "{{dateRDV}}",
+  "motifRdv": "Annual review"
+}
+
+> {%
+    client.test("appointment booked", function () {
+        client.assert(response.status === 201, "Expected 201 but got " + response.status);
+    });
+    client.global.set("refRDV", response.body.refRDV);
+%}
+
+### Get the booked appointment by reference
+GET {{api}}/appointments/{{refRDV}}
+Accept: application/json
+
+### List appointments for a manager
+GET {{api}}/appointments?managerRef=MGR-1
+Accept: application/json
+
+### Double-booking the same manager + slot -> 409 Conflict
+POST {{api}}/appointments
+Content-Type: application/json
+
+{
+  "refClient": "CLI-1",
+  "refService": "HR",
+  "refResponsable": "MGR-1",
+  "dateRDV": "{{dateRDV}}"
+}
+
+> {%
+    client.test("rejected as conflict", function () {
+        client.assert(response.status === 409, "Expected 409 but got " + response.status);
+    });
+%}
+
+### Slot not on the hour -> 422 Business rule violation
+POST {{api}}/appointments
+Content-Type: application/json
+
+{
+  "refClient": "CLI-1",
+  "refService": "HR",
+  "refResponsable": "MGR-1",
+  "dateRDV": "2026-06-01T09:30:00"
+}
+
+### Less than two days in advance -> 422 Business rule violation
+# Set this to tomorrow on the hour (must still be in the future).
+POST {{api}}/appointments
+Content-Type: application/json
+
+{
+  "refClient": "CLI-1",
+  "refService": "HR",
+  "refResponsable": "MGR-1",
+  "dateRDV": "2026-05-24T09:00:00"
+}
+
+### Unknown manager -> 404 Not found
+POST {{api}}/appointments
+Content-Type: application/json
+
+{
+  "refClient": "CLI-1",
+  "refService": "HR",
+  "refResponsable": "MGR-DOES-NOT-EXIST",
+  "dateRDV": "{{dateRDV}}"
+}
+
+### Invalid payload (blank ref, bad email) -> 400 Validation failed
+POST {{api}}/users
+Content-Type: application/json
+
+{
+  "ref": "",
+  "email": "not-an-email",
+  "nom": "X",
+  "prenom": "Y",
+  "role": "CLIENT"
+}
+
+### Cancel the appointment -> 200 (status becomes CANCELLED)
+DELETE {{api}}/appointments/{{refRDV}}
+Accept: application/json
+
+### Re-book the same manager + slot after cancellation -> 201 Created
+POST {{api}}/appointments
+Content-Type: application/json
+
+{
+  "refClient": "CLI-1",
+  "refService": "HR",
+  "refResponsable": "MGR-1",
+  "dateRDV": "{{dateRDV}}",
+  "motifRdv": "Rescheduled"
+}

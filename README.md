@@ -2,8 +2,10 @@
 
 A REST API for scheduling appointments between clients and managers, built with
 **Java 21** and **Spring Boot 3.5**. Persistence is **PostgreSQL** with
-**Flyway** migrations. The project is fully containerized — the only thing you
-need on your host is **Docker**.
+**Flyway** migrations.
+
+The project is fully containerized — the only thing you
+need on your host is **Docker**. No host JDK needed.
 
 ## Domain rules
 
@@ -54,7 +56,7 @@ succeeds.
 
 ## Running the application
 
-Everything runs in containers. From the project root:
+Everything runs in containers. So ensure Docker service is running on host. Then from the project root:
 
 ```bash
 docker compose up --build
@@ -62,13 +64,14 @@ docker compose up --build
 
 This starts:
 
-- `db` — PostgreSQL 16 on `localhost:5432` (db/user/pass: `scheduler`)
-- `app` — the API on `http://localhost:8080`, after the database is healthy
+- `db` — PostgreSQL 16 on `localhost:5439` (db/user/pass: `scheduler`)
+- `app` — the API on `http://localhost:8089`, after the database is healthy
 
-Flyway applies the schema and seeds departments on startup. Stop with
-`Ctrl+C`; remove volumes with `docker compose down -v`.
+The host ports default to `5439`/`8089` (chosen to avoid clashing with the
+usual `5432`/`8080`). Flyway applies the schema and seeds departments on
+startup. Stop with `Ctrl+C`; remove volumes with `docker compose down -v`.
 
-If those host ports are already in use, override them:
+If those host ports are also in use, override them:
 
 ```bash
 DB_PORT=5433 APP_PORT=8085 docker compose up --build   # API then on :8085
@@ -77,7 +80,9 @@ DB_PORT=5433 APP_PORT=8085 docker compose up --build   # API then on :8085
 ## Running the tests
 
 No JDK/Maven needed on the host — tests run in a Maven container that mounts the
-Docker socket so Testcontainers can launch a Postgres container:
+Docker socket so Testcontainers can launch a Postgres container. 
+
+So ensure Docker service is running on host. Then from the project root:
 
 ```powershell
 # Windows
@@ -94,6 +99,23 @@ Docker socket so Testcontainers can launch a Postgres container:
 > Engine ≥ 29. If you have a JDK 21 on your host you can also just run
 > `./mvnw test`.
 
+## Trying the API in VS Code (no Postman needed)
+
+If you use VS Code and would rather not exercise the endpoints by hand with
+Postman or similar tools, install the
+[REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client)
+extension. Then open
+[`./src/test/resources/appointment-api.http`](src/test/resources/appointment-api.http)
+and click the **Send Request** link shown above the endpoint you want to call.
+
+The requests are ordered to run top to bottom: create the users first, then book
+an appointment (its generated `refRDV` is reused by the follow-up requests). The
+file also includes the error cases (409 / 422 / 404 / 400) and a cancel +
+re-book flow.
+
+NB: If you are using another IDE, go ahead and find the corresponding REST Client extension.
+
+
 ## API reference
 
 Base path: `/api`
@@ -107,11 +129,11 @@ Base path: `/api`
 | `GET`  | `/api/users?role=MANAGER` | List users (optional `role` filter) |
 
 ```bash
-curl -X POST http://localhost:8080/api/users \
+curl -X POST http://localhost:8089/api/users \
   -H 'Content-Type: application/json' \
   -d '{"ref":"MGR-1","email":"manager@afb.test","telephone":"0600000001","nom":"Doe","prenom":"John","role":"MANAGER"}'
 
-curl -X POST http://localhost:8080/api/users \
+curl -X POST http://localhost:8089/api/users \
   -H 'Content-Type: application/json' \
   -d '{"ref":"CLI-1","email":"client@afb.test","telephone":"0600000002","nom":"Roe","prenom":"Jane","role":"CLIENT"}'
 ```
@@ -132,7 +154,7 @@ curl -X POST http://localhost:8080/api/users \
 | `DELETE` | `/api/appointments/{refRDV}` | Cancel an appointment |
 
 ```bash
-curl -X POST http://localhost:8080/api/appointments \
+curl -X POST http://localhost:8089/api/appointments \
   -H 'Content-Type: application/json' \
   -d '{
         "refClient": "CLI-1",

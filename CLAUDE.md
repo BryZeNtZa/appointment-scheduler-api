@@ -15,7 +15,8 @@ The host **Docker Engine is v29+ (API 1.54)**, which the docker-java client bund
 ## Commands
 
 ```bash
-# Run the app (API on :8080, Postgres on :5432). Override ports if taken:
+# Run the app. Host ports default to API :8089 and Postgres :5439 (chosen to
+# avoid the usual 8080/5432). Override them if still taken:
 docker compose up --build
 DB_PORT=5433 APP_PORT=8085 docker compose up --build
 

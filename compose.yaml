@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: scheduler
       POSTGRES_PASSWORD: scheduler
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT:-5439}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -25,7 +25,7 @@ services:
       SPRING_DATASOURCE_USERNAME: scheduler
       SPRING_DATASOURCE_PASSWORD: scheduler
     ports:
-      - "${APP_PORT:-8080}:8080"
+      - "${APP_PORT:-8089}:8080"
 
 volumes:
   pgdata:
