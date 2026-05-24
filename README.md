@@ -99,7 +99,9 @@ So ensure Docker service is running on host. Then from the project root:
 > Engine ≥ 29. If you have a JDK 21 on your host you can also just run
 > `./mvnw test`.
 
-## Trying the API in VS Code (no Postman needed)
+## Testing the API endpoints (using VS Code or your favorite IDE, no Postman needed)
+
+Ensure the application is up and running.
 
 If you use VS Code and would rather not exercise the endpoints by hand with
 Postman or similar tools, install the
